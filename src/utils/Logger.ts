@@ -30,6 +30,7 @@ export class Logger {
   }
 
   private static moduleColors: Map<string, string> = new Map()
+  private static isProduction = import.meta.env.MODE === 'production'
 
   /**
    * 配置日志系统
@@ -83,7 +84,7 @@ export class Logger {
    * 调试日志
    */
   static debug(module: string, message: string, ...args: any[]): void {
-    if (this.config.level <= LogLevel.DEBUG) {
+    if (this.config.level <= LogLevel.DEBUG && typeof console !== 'undefined' && console.debug) {
       const formatted = this.formatMessage(module, message)
       console.debug(formatted, ...args)
     }
@@ -93,7 +94,7 @@ export class Logger {
    * 信息日志
    */
   static info(module: string, message: string, ...args: any[]): void {
-    if (this.config.level <= LogLevel.INFO) {
+    if (this.config.level <= LogLevel.INFO && typeof console !== 'undefined' && console.info) {
       const formatted = this.formatMessage(module, message)
       console.info(formatted, ...args)
     }
@@ -103,7 +104,7 @@ export class Logger {
    * 警告日志
    */
   static warn(module: string, message: string, ...args: any[]): void {
-    if (this.config.level <= LogLevel.WARN) {
+    if (this.config.level <= LogLevel.WARN && typeof console !== 'undefined' && console.warn) {
       const formatted = this.formatMessage(module, message)
       console.warn(formatted, ...args)
     }
@@ -113,7 +114,7 @@ export class Logger {
    * 错误日志
    */
   static error(module: string, message: string, ...args: any[]): void {
-    if (this.config.level <= LogLevel.ERROR) {
+    if (this.config.level <= LogLevel.ERROR && typeof console !== 'undefined' && console.error) {
       const formatted = this.formatMessage(module, message)
       console.error(formatted, ...args)
     }
