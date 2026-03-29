@@ -1,5 +1,6 @@
 import { Logger } from '@/utils/Logger'
-import { RendererConfig, ParticleConfig, PerformanceConfig } from '@/utils/types/common'
+import { RendererConfig, ParticleConfig } from '@/utils/types/common'
+import { PerformanceConfig } from '@/utils/types/performance'
 
 /**
  * 应用配置类
@@ -44,6 +45,9 @@ export class AppConfig {
     fallbackStrategies: ['reduce_particles' as any, 'switch_renderer' as any]
   }
 
+  // GPU 计算配置
+  private useGPUCompute: boolean = true
+
   private constructor() {
     this.loadFromStorage()
   }
@@ -66,12 +70,15 @@ export class AppConfig {
       const savedConfig = localStorage.getItem('nebula_config')
       if (savedConfig) {
         const config = JSON.parse(savedConfig)
-        
+
         // 验证配置格式
         if (this.validateConfig(config)) {
           this.rendererConfig = { ...this.rendererConfig, ...config.renderer }
           this.particleConfig = { ...this.particleConfig, ...config.particle }
           this.performanceConfig = { ...this.performanceConfig, ...config.performance }
+          if (typeof config.useGPUCompute === 'boolean') {
+            this.useGPUCompute = config.useGPUCompute
+          }
           this.logger.info('Configuration loaded from storage')
         } else {
           this.logger.warn('Invalid configuration format, using defaults')
@@ -145,7 +152,8 @@ export class AppConfig {
       const config = {
         renderer: this.rendererConfig,
         particle: this.particleConfig,
-        performance: this.performanceConfig
+        performance: this.performanceConfig,
+        useGPUCompute: this.useGPUCompute
       }
       localStorage.setItem('nebula_config', JSON.stringify(config))
       this.logger.info('Configuration saved to storage')
@@ -187,6 +195,7 @@ export class AppConfig {
       enableAutoFallback: true,
       fallbackStrategies: ['reduce_particles' as any, 'switch_renderer' as any]
     }
+    this.useGPUCompute = true
     this.saveToStorage()
     this.logger.info('Configuration reset to defaults')
   }
@@ -262,11 +271,30 @@ export class AppConfig {
       if (config.performance) {
         this.performanceConfig = { ...this.performanceConfig, ...config.performance }
       }
+      if (typeof config.useGPUCompute === 'boolean') {
+        this.useGPUCompute = config.useGPUCompute
+      }
       this.saveToStorage()
       this.logger.info('Configuration imported successfully')
     } catch (error) {
       this.logger.error('Failed to import configuration:', error)
       throw error
     }
+  }
+
+  /**
+   * 获取 GPU 计算配置
+   */
+  getUseGPUCompute(): boolean {
+    return this.useGPUCompute
+  }
+
+  /**
+   * 设置 GPU 计算配置
+   */
+  setUseGPUCompute(enabled: boolean): void {
+    this.useGPUCompute = enabled
+    this.saveToStorage()
+    this.logger.info(`GPU compute ${enabled ? 'enabled' : 'disabled'}`)
   }
 }

@@ -127,7 +127,7 @@ export class WebGPURenderer extends RendererBase {
   /**
    * 获取 Three.js 渲染器实例
    */
-  getRenderer(): THREE.WebGPURenderer | null {
+  getRenderer(): THREE.WebGLRenderer | null {
     return this.renderer
   }
 

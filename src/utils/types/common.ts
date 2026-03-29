@@ -1,12 +1,4 @@
 /**
- * 渲染器类型枚举
- */
-export enum RendererType {
-  WebGPU = 'webgpu',
-  WebGL = 'webgl'
-}
-
-/**
  * 粒子发射模式
  */
 export enum EmitterMode {
@@ -88,15 +80,7 @@ export interface PerformanceMetrics {
   gpuMemoryUsage?: number
 }
 
-/**
- * 性能配置
- */
-export interface PerformanceConfig {
-  targetFPS: number
-  minFPS: number
-  enableAutoFallback: boolean
-  fallbackStrategies: string[]
-}
+import type { RendererType } from './renderer'
 
 /**
  * 渲染器配置

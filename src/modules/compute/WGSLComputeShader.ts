@@ -1,4 +1,4 @@
-import { IComputeShader, ComputeShaderConfig, ShaderLanguage } from '@/utils/types/compute'
+import { IComputeShader, ComputeShaderConfig } from '@/utils/types/compute'
 import { Logger } from '@/utils/Logger'
 
 /**
@@ -110,19 +110,19 @@ export class WGSLComputeShader implements IComputeShader {
    * 创建绑定组
    */
   private createBindGroup(): void {
-    if (!this.device || !this.pipeline || !this.uniformBuffer) {
+    if (!this.device || !this.pipeline || !this.uniformBuffer || !this.positionBuffer1 || !this.positionBuffer2 || !this.velocityBuffer || !this.ageBuffer) {
       throw new Error('Resources not initialized')
     }
 
-    const inputPosition = this.pingPong ? this.positionBuffer2 : this.positionBuffer1
-    const outputPosition = this.pingPong ? this.positionBuffer1 : this.positionBuffer2
+    const inputPosition = this.pingPong ? this.positionBuffer2! : this.positionBuffer1!
+    const outputPosition = this.pingPong ? this.positionBuffer1! : this.positionBuffer2!
 
     this.bindGroup = this.device.createBindGroup({
       layout: this.pipeline.getBindGroupLayout(0),
       entries: [
         { binding: 0, resource: { buffer: this.uniformBuffer } },
         { binding: 1, resource: { buffer: inputPosition } },
-        { binding: 2, resource: { buffer: outputPosition! } },
+        { binding: 2, resource: { buffer: outputPosition } },
         { binding: 3, resource: { buffer: this.velocityBuffer } },
         { binding: 4, resource: { buffer: this.ageBuffer } }
       ]
@@ -137,56 +137,81 @@ export class WGSLComputeShader implements IComputeShader {
       return
     }
 
-    const uniformData = new Float32Array([
-      deltaTime,
-      gravity.x,
-      gravity.y,
-      gravity.z,
-      drag,
-      lifetime,
-      0,
-      0
-    ])
+    const uniformData = new Float32Array(new ArrayBuffer(32))
+    uniformData[0] = deltaTime
+    uniformData[1] = gravity.x
+    uniformData[2] = gravity.y
+    uniformData[3] = gravity.z
+    uniformData[4] = drag
+    uniformData[5] = lifetime
+    uniformData[6] = 0
+    uniformData[7] = 0
 
-    this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData)
+    this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData as any)
   }
 
   /**
    * 更新粒子数据
    */
   updateParticleData(positions: Float32Array, velocities: Float32Array, ages: Float32Array): void {
-    if (!this.device || !this.positionBuffer1 || !this.velocityBuffer || !this.ageBuffer) {
+    if (!this.device || !this.positionBuffer1 || !this.positionBuffer2 || !this.velocityBuffer || !this.ageBuffer) {
       return
     }
 
-    const inputPosition = this.pingPong ? this.positionBuffer2 : this.positionBuffer1
+    const inputPosition = this.pingPong ? this.positionBuffer2! : this.positionBuffer1!
 
-    this.device.queue.writeBuffer(inputPosition, 0, positions)
-    this.device.queue.writeBuffer(this.velocityBuffer, 0, velocities)
-    this.device.queue.writeBuffer(this.ageBuffer, 0, ages)
+    this.device.queue.writeBuffer(inputPosition, 0, positions as any)
+    this.device.queue.writeBuffer(this.velocityBuffer!, 0, velocities as any)
+    this.device.queue.writeBuffer(this.ageBuffer!, 0, ages as any)
   }
 
   /**
    * 获取输出数据
    */
-  getOutputData(particleCount: number): { positions: Float32Array; velocities: Float32Array; ages: Float32Array } {
+  async getOutputData(particleCount: number): Promise<{ positions: Float32Array; velocities: Float32Array; ages: Float32Array }> {
     if (!this.device || !this.positionBuffer1 || !this.positionBuffer2 || !this.velocityBuffer || !this.ageBuffer) {
       throw new Error('Resources not initialized')
     }
 
-    const outputPosition = this.pingPong ? this.positionBuffer1 : this.positionBuffer2
+    const outputPosition = this.pingPong ? this.positionBuffer1! : this.positionBuffer2!
 
-    // 读取位置数据
-    const positionsData = new Float32Array(particleCount * 3)
-    this.device.queue.readBuffer(outputPosition, 0, positionsData.buffer)
+    // 创建读取缓冲区
+    const positionsReadBuffer = this.device.createBuffer({
+      size: particleCount * 3 * 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    })
+    const velocitiesReadBuffer = this.device.createBuffer({
+      size: particleCount * 3 * 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    })
+    const agesReadBuffer = this.device.createBuffer({
+      size: particleCount * 4,
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+    })
 
-    // 读取速度数据
-    const velocitiesData = new Float32Array(particleCount * 3)
-    this.device.queue.readBuffer(this.velocityBuffer, 0, velocitiesData.buffer)
+    // 复制命令
+    const commandEncoder = this.device.createCommandEncoder()
+    commandEncoder.copyBufferToBuffer(outputPosition, 0, positionsReadBuffer, 0, particleCount * 3 * 4)
+    commandEncoder.copyBufferToBuffer(this.velocityBuffer!, 0, velocitiesReadBuffer, 0, particleCount * 3 * 4)
+    commandEncoder.copyBufferToBuffer(this.ageBuffer!, 0, agesReadBuffer, 0, particleCount * 4)
+    this.device.queue.submit([commandEncoder.finish()])
 
-    // 读取年龄数据
-    const agesData = new Float32Array(particleCount)
-    this.device.queue.readBuffer(this.ageBuffer, 0, agesData.buffer)
+    // 读取数据
+    await positionsReadBuffer.mapAsync(GPUMapMode.READ)
+    await velocitiesReadBuffer.mapAsync(GPUMapMode.READ)
+    await agesReadBuffer.mapAsync(GPUMapMode.READ)
+
+    const positionsData = new Float32Array(positionsReadBuffer.getMappedRange().slice(0))
+    const velocitiesData = new Float32Array(velocitiesReadBuffer.getMappedRange().slice(0))
+    const agesData = new Float32Array(agesReadBuffer.getMappedRange().slice(0))
+
+    positionsReadBuffer.unmap()
+    velocitiesReadBuffer.unmap()
+    agesReadBuffer.unmap()
+
+    positionsReadBuffer.destroy()
+    velocitiesReadBuffer.destroy()
+    agesReadBuffer.destroy()
 
     return {
       positions: positionsData,

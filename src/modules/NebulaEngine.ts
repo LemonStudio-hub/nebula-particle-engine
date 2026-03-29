@@ -1,7 +1,6 @@
 import { IRenderer, RendererType } from '@/utils/types/renderer'
 import { ParticleSystem } from './particles'
-import { ParticleSystemConfig } from '@/utils/types/particle'
-import { RenderPipeline, RenderPipelineConfig } from './renderer/RenderPipeline'
+import { RenderPipeline } from './renderer/RenderPipeline'
 import { RendererFactory } from './renderer/RendererFactory'
 import { InteractionManager } from './interaction/InteractionManager'
 import { PerformanceMonitor } from './performance/PerformanceMonitor'
@@ -44,6 +43,8 @@ export class NebulaEngine {
     this.logger.info('Initializing Nebula engine...')
 
     try {
+      // 保存 canvas 引用（用于后续可能的资源清理）
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       this.canvas = canvas
 
       // 创建渲染器
@@ -64,8 +65,36 @@ export class NebulaEngine {
         velocity: particleConfig.velocity,
         color: particleConfig.color,
         gravity: particleConfig.gravity,
-        drag: particleConfig.drag
+        drag: particleConfig.drag,
+        // 默认启用粒子效果
+        colorOverLifetime: {
+          start: { r: 0.5, g: 0.3, b: 1.0 },  // 紫色
+          end: { r: 1.0, g: 0.5, b: 0.2 }     // 橙色
+        },
+        sizeOverLifetime: {
+          enabled: true,
+          factor: 0.8  // 粒子大小衰减 80%
+        },
+        opacityOverLifetime: {
+          enabled: true,
+          start: 1.0,  // 初始不透明
+          end: 0.0     // 结束完全透明
+        }
       })
+
+      // 初始化 GPU 计算着色器
+      const useGPUCompute = this.config.getUseGPUCompute()
+      if (useGPUCompute) {
+        try {
+          await this.particleSystem.initializeGPUCompute()
+          this.particleSystem.enableGPUCompute()
+          this.logger.info('GPU compute shader initialized successfully')
+        } catch (error) {
+          this.logger.warn('Failed to initialize GPU compute shader, using CPU fallback:', error)
+        }
+      } else {
+        this.logger.info('GPU compute disabled by configuration')
+      }
 
       // 调整发射器位置和方向，使粒子可见
       const emitterConfig = {
@@ -108,7 +137,7 @@ export class NebulaEngine {
 
       // 预分配粒子数据数组
       this.particlePositions = new Float32Array(particleConfig.maxCount * 3)
-      this.particleColors = new Float32Array(particleConfig.maxCount * 3)
+      this.particleColors = new Float32Array(particleConfig.maxCount * 4)  // RGBA
       this.particleSizes = new Float32Array(particleConfig.maxCount)
 
       // 创建交互管理器
@@ -193,60 +222,103 @@ export class NebulaEngine {
   private renderLoop = (): void => {
     if (!this.running) return
 
-    const currentTime = performance.now()
-    const deltaTime = Math.min((currentTime - this.lastFrameTime) / 1000, 0.1) // 限制最大帧时间
-    this.lastFrameTime = currentTime
+    try {
+      const currentTime = performance.now()
+      const deltaTime = Math.min((currentTime - this.lastFrameTime) / 1000, 0.1) // 限制最大帧时间
+      this.lastFrameTime = currentTime
 
-    // 更新粒子系统
-    this.particleSystem?.update(deltaTime)
+      // 更新粒子系统
+      this.particleSystem?.update(deltaTime)
 
-    // 更新渲染数据
-    if (this.particleSystem && this.renderPipeline && this.particlePositions && this.particleColors && this.particleSizes) {
-      const maxParticles = this.particleSystem.getMaxParticles()
-      const particles = this.particleSystem.getActiveParticles()
+      // 更新渲染数据
+      if (this.particleSystem && this.renderPipeline && this.particlePositions && this.particleColors && this.particleSizes) {
+        const maxParticles = this.particleSystem.getMaxParticles()
+        const particles = this.particleSystem.getActiveParticles()
 
-      // 清空数组
-      this.particlePositions.fill(0)
-      this.particleColors.fill(0)
-      this.particleSizes.fill(0)
+        // 清空数组
+        this.particlePositions.fill(0)
+        this.particleColors.fill(0)
+        this.particleSizes.fill(0)
 
-      // 填充活跃粒子数据
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i]
-        this.particlePositions[i * 3 + 0] = p.position.x
-        this.particlePositions[i * 3 + 1] = p.position.y
-        this.particlePositions[i * 3 + 2] = p.position.z
-        this.particleColors[i * 3 + 0] = p.color.r
-        this.particleColors[i * 3 + 1] = p.color.g
-        this.particleColors[i * 3 + 2] = p.color.b
-        this.particleSizes[i] = p.size
+        // 填充活跃粒子数据
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i]
+          this.particlePositions[i * 3 + 0] = p.position.x
+          this.particlePositions[i * 3 + 1] = p.position.y
+          this.particlePositions[i * 3 + 2] = p.position.z
+          this.particleColors[i * 4 + 0] = p.color.r  // R
+          this.particleColors[i * 4 + 1] = p.color.g  // G
+          this.particleColors[i * 4 + 2] = p.color.b  // B
+          this.particleColors[i * 4 + 3] = p.opacity  // A
+          this.particleSizes[i] = p.size
+        }
+
+        // 将不活跃粒子移到视野外
+        for (let i = particles.length; i < maxParticles; i++) {
+          this.particlePositions[i * 3 + 0] = 0
+          this.particlePositions[i * 3 + 1] = -1000
+          this.particlePositions[i * 3 + 2] = 0
+          this.particleColors[i * 4 + 3] = 0  // 不活跃粒子透明
+        }
+
+        this.renderPipeline.updateRenderData(this.particlePositions, this.particleColors, this.particleSizes)
       }
 
-      // 将不活跃粒子移到视野外
-      for (let i = particles.length; i < maxParticles; i++) {
-        this.particlePositions[i * 3 + 0] = 0
-        this.particlePositions[i * 3 + 1] = -1000
-        this.particlePositions[i * 3 + 2] = 0
+      // 渲染
+      this.renderer?.render()
+
+      // 更新性能监控
+      const particleCount = this.particleSystem?.getActiveCount() || 0
+      this.performanceMonitor?.update(particleCount)
+
+      // 检查性能并执行降级
+      if (this.performanceMonitor && this.fallbackManager) {
+        const metrics = this.performanceMonitor.getCurrentMetrics()
+        this.fallbackManager.checkPerformance(metrics)
       }
 
-      this.renderPipeline.updateRenderData(this.particlePositions, this.particleColors, this.particleSizes)
+      // 请求下一帧
+      requestAnimationFrame(this.renderLoop)
+    } catch (error) {
+      this.logger.error('Error in render loop:', error)
+
+      // 暂停引擎以防止错误循环
+      this.running = false
+
+      // 尝试恢复
+      this.attemptRecovery(error)
     }
+  }
 
-    // 渲染
-    this.renderer?.render()
+  /**
+   * 尝试从错误中恢复
+   */
+  private attemptRecovery(_error: unknown): void {
+    this.logger.info('Attempting to recover from error...')
 
-    // 更新性能监控
-    const particleCount = this.particleSystem?.getActiveCount() || 0
-    this.performanceMonitor?.update(particleCount)
+    try {
+      // 重置性能监控
+      this.performanceMonitor?.stop()
 
-    // 检查性能并执行降级
-    if (this.performanceMonitor && this.fallbackManager) {
-      const metrics = this.performanceMonitor.getCurrentMetrics()
-      this.fallbackManager.checkPerformance(metrics)
+      // 如果是渲染器错误，尝试重新初始化
+      if (this.renderer && this.canvas) {
+        this.logger.info('Attempting to reinitialize renderer...')
+        // 注意：这里简化了恢复逻辑，实际可能需要更复杂的处理
+      }
+
+      // 等待一段时间后重启
+      setTimeout(() => {
+        try {
+          this.logger.info('Restarting engine...')
+          this.start()
+        } catch (restartError) {
+          this.logger.error('Failed to restart engine:', restartError)
+          // 如果重启失败，保持停止状态
+        }
+      }, 1000)
+    } catch (recoveryError) {
+      this.logger.error('Recovery failed:', recoveryError)
     }
-
-    // 请求下一帧
-    requestAnimationFrame(this.renderLoop)
   }
 
   /**

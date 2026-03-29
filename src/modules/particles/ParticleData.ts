@@ -12,6 +12,7 @@ export class ParticleData {
   public size: number
   public lifetime: number
   public age: number
+  public opacity: number
   public active: boolean
 
   constructor() {
@@ -22,6 +23,7 @@ export class ParticleData {
     this.size = 1
     this.lifetime = 1
     this.age = 0
+    this.opacity = 1
     this.active = false
   }
 
@@ -36,6 +38,7 @@ export class ParticleData {
     this.size = 1
     this.lifetime = 1
     this.age = 0
+    this.opacity = 1
     this.active = false
   }
 
@@ -45,6 +48,7 @@ export class ParticleData {
   activate(): void {
     this.active = true
     this.age = 0
+    this.opacity = 1
   }
 
   /**
@@ -101,6 +105,7 @@ export class ParticleData {
     clone.size = this.size
     clone.lifetime = this.lifetime
     clone.age = this.age
+    clone.opacity = this.opacity
     clone.active = this.active
     return clone
   }

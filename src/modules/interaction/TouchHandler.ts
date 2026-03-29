@@ -7,8 +7,10 @@ import { InteractionEventType } from '@/utils/types/interaction'
  * 处理触摸移动、点击等交互
  */
 export class TouchHandler extends InteractionHandler {
+  // @ts-expect-error - reserved for future multi-touch support
   private lastTouchId: number | null = null
   private lastPosition: Vector3 | null = null
+  // @ts-expect-error - reserved for future gesture detection
   private touchStartTime: number = 0
 
   /**

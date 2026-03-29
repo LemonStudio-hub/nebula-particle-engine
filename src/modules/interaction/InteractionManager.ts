@@ -3,11 +3,7 @@ import { TouchHandler } from './TouchHandler'
 import { GestureHandler } from './GestureHandler'
 import { InteractionEventType, InteractionEvent } from '@/utils/types/interaction'
 import { Logger } from '@/utils/Logger'
-
-/**
- * 交互事件回调
- */
-export type InteractionCallback = (event: InteractionEvent) => void
+import { InteractionCallback } from './InteractionHandler'
 
 /**
  * 交互管理器

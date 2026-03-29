@@ -39,7 +39,7 @@ export class GeometryManager {
 
     // 创建顶点数组（每个粒子一个顶点）
     const positions = new Float32Array(particleCount * 3)
-    const colors = new Float32Array(particleCount * 3)
+    const colors = new Float32Array(particleCount * 4)  // RGBA
     const sizes = new Float32Array(particleCount)
 
     // 初始化数组
@@ -48,15 +48,16 @@ export class GeometryManager {
       positions[i * 3 + 1] = 0
       positions[i * 3 + 2] = 0
 
-      colors[i * 3 + 0] = 1
-      colors[i * 3 + 1] = 1
-      colors[i * 3 + 2] = 1
+      colors[i * 4 + 0] = 1  // R
+      colors[i * 4 + 1] = 1  // G
+      colors[i * 4 + 2] = 1  // B
+      colors[i * 4 + 3] = 1  // A
 
       sizes[i] = 1
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 4))
     geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1))
 
     this.geometries.set(key, geometry)

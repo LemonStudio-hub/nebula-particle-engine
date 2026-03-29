@@ -30,7 +30,19 @@ export class Logger {
   }
 
   private static moduleColors: Map<string, string> = new Map()
-  private static isProduction = import.meta.env.MODE === 'production'
+
+  static {
+    try {
+      if (typeof import.meta !== 'undefined' && 'env' in import.meta) {
+        const env = import.meta.env
+        if (env?.MODE === 'production') {
+          this.config.level = LogLevel.WARN
+        }
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
 
   /**
    * 配置日志系统
@@ -63,7 +75,7 @@ export class Logger {
   /**
    * 格式化日志消息
    */
-  private static formatMessage(module: string, message: string): string {
+  private static formatMessage(module: string, message: string): string | string[] {
     let formatted = ''
 
     if (this.config.enableTimestamp) {

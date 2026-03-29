@@ -45,4 +45,7 @@ export interface ParticleSystemConfig {
   color: ColorRange
   gravity?: Vector3
   drag?: number
+  colorOverLifetime?: ColorRange
+  sizeOverLifetime?: { enabled: boolean, factor: number }
+  opacityOverLifetime?: { enabled: boolean, start: number, end: number }
 }

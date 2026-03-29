@@ -8,7 +8,9 @@ import { InteractionEventType } from '@/utils/types/interaction'
  */
 export class MouseHandler extends InteractionHandler {
   private lastPosition: Vector3 | null = null
+  // @ts-expect-error - reserved for future drag detection
   private mouseDownPosition: Vector3 | null = null
+  // @ts-expect-error - reserved for future drag detection
   private mouseDownTime: number = 0
 
   /**
@@ -93,7 +95,7 @@ export class MouseHandler extends InteractionHandler {
   /**
    * 处理鼠标离开
    */
-  private handleMouseLeave(event: MouseEvent): void {
+  private handleMouseLeave(_event: MouseEvent): void {
     if (!this.enabled) return
 
     this.lastPosition = null

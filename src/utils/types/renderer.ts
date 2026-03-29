@@ -1,17 +1,17 @@
 import { RendererConfig } from './common'
 
-/**
- * 渲染器类型枚举
- */
-export enum RendererType {
-  WebGPU = 'webgpu',
-  WebGL = 'webgl'
-}
+// 重新导出 RendererConfig
+export type { RendererConfig } from './common'
 
 /**
- * 渲染器类型枚举
+ * 渲染器类型常量对象
  */
-export type { RendererType }
+export const RendererType = {
+  WebGPU: 'webgpu' as const,
+  WebGL: 'webgl' as const
+} as const
+
+export type RendererType = typeof RendererType[keyof typeof RendererType]
 
 /**
  * 渲染器接口
@@ -39,5 +39,5 @@ export interface RendererCreateConfig extends RendererConfig {
  */
 export interface IRendererFactory {
   create(config: RendererCreateConfig): Promise<IRenderer>
-  detectBestRenderer(): RendererType
+  detectBestRenderer(): Promise<RendererType>
 }

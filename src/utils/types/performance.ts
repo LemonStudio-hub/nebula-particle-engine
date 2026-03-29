@@ -1,5 +1,8 @@
 import { PerformanceMetrics } from './common'
 
+// 重新导出 PerformanceMetrics
+export type { PerformanceMetrics } from './common'
+
 /**
  * 性能监控回调
  */

@@ -1,4 +1,4 @@
-import { IComputeShader, ComputeShaderConfig, ShaderLanguage } from '@/utils/types/compute'
+import { IComputeShader, ComputeShaderConfig } from '@/utils/types/compute'
 import { Logger } from '@/utils/Logger'
 
 /**
@@ -239,7 +239,6 @@ export class GLSLComputeShader implements IComputeShader {
 
     const particleCount = workgroups[0] * 64
     const inputVAO = this.pingPong ? this.vao2 : this.vao1
-    const outputVAO = this.pingPong ? this.vao1 : this.vao2
     const outputPosition = this.pingPong ? this.positionBuffer1 : this.positionBuffer2
 
     // 设置输入 VAO
@@ -278,7 +277,7 @@ export class GLSLComputeShader implements IComputeShader {
   /**
    * 获取输出数据
    */
-  getOutputData(particleCount: number): { positions: Float32Array; velocities: Float32Array; ages: Float32Array } {
+  async getOutputData(particleCount: number): Promise<{ positions: Float32Array; velocities: Float32Array; ages: Float32Array }> {
     if (!this.gl || !this.positionBuffer1 || !this.positionBuffer2 || !this.velocityBuffer || !this.ageBuffer) {
       throw new Error('Resources not initialized')
     }

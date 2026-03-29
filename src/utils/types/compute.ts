@@ -3,6 +3,10 @@
  */
 export interface IComputeShader {
   initialize(): Promise<void>
+  allocateBuffers(particleCount: number): void
+  updateUniforms(deltaTime: number, gravity: { x: number; y: number; z: number }, drag: number, lifetime: number): void
+  updateParticleData(positions: Float32Array, velocities: Float32Array, ages: Float32Array): void
+  getOutputData(particleCount: number): Promise<{ positions: Float32Array; velocities: Float32Array; ages: Float32Array }>
   dispatch(workgroups: [number, number, number]): Promise<void>
   dispose(): void
 }

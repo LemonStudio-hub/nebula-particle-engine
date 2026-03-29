@@ -1,6 +1,7 @@
 import { IRenderer, IRendererFactory, RendererCreateConfig, RendererType } from '@/utils/types/renderer'
 import { WebGPURenderer } from './WebGPURenderer'
 import { WebGLRenderer } from './WebGLRenderer'
+import { WebGPUCompatChecker } from '@/utils/WebGPUCompatChecker'
 import { Logger } from '@/utils/Logger'
 
 /**
@@ -10,8 +11,12 @@ import { Logger } from '@/utils/Logger'
 export class RendererFactory implements IRendererFactory {
   private static instance: RendererFactory | null = null
   private readonly logger = Logger.create('RendererFactory')
+  private readonly compatChecker: WebGPUCompatChecker
+  private cachedRendererType: RendererType | null = null
 
-  private constructor() {}
+  private constructor() {
+    this.compatChecker = WebGPUCompatChecker.getInstance()
+  }
 
   /**
    * 获取单例实例
@@ -28,29 +33,38 @@ export class RendererFactory implements IRendererFactory {
    * 优先使用 WebGPU，如果不支持则降级到 WebGL
    */
   async detectBestRenderer(): Promise<RendererType> {
-    // 检查 WebGPU 支持
-    if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
-      try {
-        const adapter = await navigator.gpu.requestAdapter()
-        if (adapter) {
-          // 验证适配器功能
-          const features = adapter.features
-          const hasTimestampQuery = features.has('timestamp-query')
-          
-          this.logger.info('WebGPU detected and available', {
-            hasTimestampQuery,
-            vendor: adapter.info.vendor
-          })
-          
-          return RendererType.WebGPU
-        }
-      } catch (error) {
-        this.logger.warn('WebGPU adapter request failed:', error)
-      }
+    // 如果已经缓存了结果，直接返回
+    if (this.cachedRendererType) {
+      this.logger.info(`Using cached renderer type: ${this.cachedRendererType}`)
+      return this.cachedRendererType
     }
 
-    this.logger.info('WebGPU not available, falling back to WebGL')
-    return RendererType.WebGL
+    try {
+      this.logger.info('Detecting best renderer...')
+
+      // 使用 WebGPU 兼容性检查器
+      const result = await this.compatChecker.checkCompatibility()
+
+      if (result.supported) {
+        this.logger.info('WebGPU is available and supported')
+        this.logger.info(`GPU Info: ${result.adapterInfo?.vendor} ${result.adapterInfo?.device}`)
+        this.cachedRendererType = RendererType.WebGPU
+      } else {
+        this.logger.warn('WebGPU is not available, falling back to WebGL')
+        if (result.reason) {
+          this.logger.warn(`Reason: ${result.reason}`)
+        }
+        this.cachedRendererType = RendererType.WebGL
+      }
+
+      return this.cachedRendererType
+    } catch (error) {
+      this.logger.error('Failed to detect best renderer:', error)
+      // 发生错误时默认使用 WebGL
+      this.logger.info('Defaulting to WebGL due to error')
+      this.cachedRendererType = RendererType.WebGL
+      return this.cachedRendererType
+    }
   }
 
   /**
@@ -62,6 +76,8 @@ export class RendererFactory implements IRendererFactory {
 
     // 如果配置指定了类型，使用配置的类型
     const rendererType = config.type || bestType
+
+    this.logger.info(`Creating ${rendererType} renderer...`)
 
     try {
       switch (rendererType) {
