@@ -372,6 +372,17 @@ export class ParticleSystem {
           this.particles.push(particle)
         }
         this.logger.info(`Added ${config.maxParticles - oldMaxParticles} new particles to pool`)
+        
+        // 如果需要更多活跃粒子，激活它们
+        const targetActive = Math.min(this.config.initialParticles, config.maxParticles)
+        while (this.activeCount < targetActive) {
+          const particle = this.findInactiveParticle()
+          if (particle) {
+            this.activateParticle(particle)
+          } else {
+            break
+          }
+        }
       } else {
         // 减少粒子：优先保留活跃粒子
         const activeParticles = this.particles.filter(p => p.active)
@@ -387,26 +398,32 @@ export class ParticleSystem {
           this.particles = activeParticles.slice(0, config.maxParticles)
           this.logger.info(`Kept ${config.maxParticles} of ${activeParticles.length} active particles, removed all inactive particles`)
         }
+        
+        // 更新活跃计数
+        this.activeCount = this.particles.filter(p => p.active).length
       }
 
       // 更新活跃计数
       this.activeCount = Math.min(this.activeCount, config.maxParticles)
+    }
 
-      // 如果 GPU 计算已启用，重新分配 GPU 缓冲区
-      if (this.computeShader) {
-        this.computeShader.allocateBuffers(this.config.maxParticles)
-        this.gpuBuffers = {
-          positions: new Float32Array(this.config.maxParticles * 3),
-          velocities: new Float32Array(this.config.maxParticles * 3),
-          ages: new Float32Array(this.config.maxParticles)
+    // 如果初始粒子数量发生变化，重新激活粒子
+    if (config.initialParticles !== undefined && config.initialParticles !== this.config.initialParticles) {
+      this.logger.info(`Initial particles changed from ${this.config.initialParticles} to ${config.initialParticles}, reactivating particles`)
+      
+      const targetActive = Math.min(this.config.initialParticles, this.config.maxParticles)
+      this.logger.info(`Activating particles to reach ${targetActive} active particles (current: ${this.activeCount})`)
+      
+      while (this.activeCount < targetActive) {
+        const particle = this.findInactiveParticle()
+        if (particle) {
+          this.activateParticle(particle)
+        } else {
+          this.logger.warn(`No inactive particles found after activating ${this.activeCount} particles`)
+          break
         }
-        this.logger.info('GPU buffers reallocated')
       }
-
-      // 通知外部粒子数量已变化
-      if (this.particleCountChangeCallback) {
-        this.particleCountChangeCallback(this.config.maxParticles)
-      }
+      this.logger.info(`Total active particles after reactivation: ${this.activeCount}`)
     }
 
     // 更新发射器配置
