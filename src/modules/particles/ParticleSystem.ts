@@ -309,6 +309,13 @@ export class ParticleSystem {
   }
 
   /**
+   * 获取发射器
+   */
+  getEmitter(): ParticleEmitter {
+    return this.emitter
+  }
+
+  /**
    * 重置粒子系统
    */
   reset(): void {
@@ -330,18 +337,40 @@ export class ParticleSystem {
    * 更新配置
    */
   updateConfig(config: Partial<ParticleSystemConfig & { emitter?: any }>): void {
+    const oldMaxParticles = this.config.maxParticles
     this.config = { ...this.config, ...config }
+
+    // 如果最大粒子数量发生变化，重新初始化粒子池
+    if (config.maxParticles !== undefined && config.maxParticles !== oldMaxParticles) {
+      this.logger.info(`Max particles changed from ${oldMaxParticles} to ${config.maxParticles}, reinitializing particle pool`)
+      this.initializeParticlePool()
+
+      // 如果 GPU 计算已启用，重新分配 GPU 缓冲区
+      if (this.computeShader) {
+        this.computeShader.allocateBuffers(this.config.maxParticles)
+        this.gpuBuffers = {
+          positions: new Float32Array(this.config.maxParticles * 3),
+          velocities: new Float32Array(this.config.maxParticles * 3),
+          ages: new Float32Array(this.config.maxParticles)
+        }
+      }
+    }
 
     // 更新发射器配置
     if (config.emitter) {
       this.emitter.updateConfig({
-        rate: config.emitter.rate || this.config.emitRate,
+        // 传递所有发射器相关属性
+        position: config.emitter.position,
+        direction: config.emitter.direction,
+        spread: config.emitter.spread,
+        rate: config.emitter.rate !== undefined ? config.emitter.rate : this.config.emitRate,
         size: config.emitter.size || this.config.size,
         lifetime: config.emitter.lifetime || this.config.lifetime,
         velocity: config.emitter.velocity || this.config.velocity,
         color: config.emitter.color || this.config.color,
         gravity: config.emitter.gravity || this.config.gravity,
-        drag: config.emitter.drag || this.config.drag
+        drag: config.emitter.drag !== undefined ? config.emitter.drag : this.config.drag,
+        burstCount: config.emitter.burstCount
       })
     } else {
       // 更新发射器配置
