@@ -178,8 +178,7 @@ const updateParticleCount = () => {
       initialParticles: Math.min(particleCount.value, currentConfig.initialParticles)
     })
 
-    // 重置粒子系统以应用新配置
-    particleSystem.reset()
+    // 不需要重置粒子系统，动态调整机制会处理
 
     console.log(`[ControlPanel] Particle count updated to ${particleCount.value}`)
   } catch (error) {

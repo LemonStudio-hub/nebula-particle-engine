@@ -49,6 +49,7 @@ export class ParticleData {
     this.active = true
     this.age = 0
     this.opacity = 1
+    // 注意：大小应该由发射器或外部设置，不在这里重置
   }
 
   /**

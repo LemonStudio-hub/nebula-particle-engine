@@ -28,6 +28,7 @@ export class ParticleSystem {
     velocities: Float32Array
     ages: Float32Array
   } | null = null
+  private particleCountChangeCallback: ((newCount: number) => void) | null = null
 
   constructor(config: ParticleSystemConfig) {
     this.config = config
@@ -137,16 +138,21 @@ export class ParticleSystem {
     // 准备 GPU 缓冲区数据
     const { positions, velocities, ages } = this.gpuBuffers
 
-    // 从粒子数据填充缓冲区
-    for (let i = 0; i < this.particles.length; i++) {
+    // 从粒子数据填充缓冲区（使用 maxParticles 确保覆盖所有槽位）
+    for (let i = 0; i < this.config.maxParticles; i++) {
       const particle = this.particles[i]
-      positions[i * 3 + 0] = particle.position.x
-      positions[i * 3 + 1] = particle.position.y
-      positions[i * 3 + 2] = particle.position.z
-      velocities[i * 3 + 0] = particle.velocity.x
-      velocities[i * 3 + 1] = particle.velocity.y
-      velocities[i * 3 + 2] = particle.velocity.z
-      ages[i] = particle.active ? particle.age : -1
+      if (particle) {
+        positions[i * 3 + 0] = particle.position.x
+        positions[i * 3 + 1] = particle.position.y
+        positions[i * 3 + 2] = particle.position.z
+        velocities[i * 3 + 0] = particle.velocity.x
+        velocities[i * 3 + 1] = particle.velocity.y
+        velocities[i * 3 + 2] = particle.velocity.z
+        ages[i] = particle.active ? particle.age : -1
+      } else {
+        // 如果粒子不存在（理论上不应该发生），标记为不活跃
+        ages[i] = -1
+      }
     }
 
     // 更新 Uniform 数据
@@ -323,6 +329,13 @@ export class ParticleSystem {
   }
 
   /**
+   * 设置粒子数量变化回调
+   */
+  setParticleCountChangeCallback(callback: (newCount: number) => void): void {
+    this.particleCountChangeCallback = callback
+  }
+
+  /**
    * 重置粒子系统
    */
   reset(): void {
@@ -360,10 +373,20 @@ export class ParticleSystem {
         }
         this.logger.info(`Added ${config.maxParticles - oldMaxParticles} new particles to pool`)
       } else {
-        // 减少粒子：移除多余粒子（保留前 N 个活跃粒子）
-        const removedCount = oldMaxParticles - config.maxParticles
-        this.particles = this.particles.slice(0, config.maxParticles)
-        this.logger.info(`Removed ${removedCount} particles from pool`)
+        // 减少粒子：优先保留活跃粒子
+        const activeParticles = this.particles.filter(p => p.active)
+        const inactiveParticles = this.particles.filter(p => !p.active)
+        
+        if (config.maxParticles >= activeParticles.length) {
+          // 保留所有活跃粒子，补充不活跃粒子
+          const neededInactive = config.maxParticles - activeParticles.length
+          this.particles = [...activeParticles, ...inactiveParticles.slice(0, neededInactive)]
+          this.logger.info(`Kept all ${activeParticles.length} active particles, removed ${inactiveParticles.length - neededInactive} inactive particles`)
+        } else {
+          // 保留前 N 个活跃粒子
+          this.particles = activeParticles.slice(0, config.maxParticles)
+          this.logger.info(`Kept ${config.maxParticles} of ${activeParticles.length} active particles, removed all inactive particles`)
+        }
       }
 
       // 更新活跃计数
@@ -378,6 +401,11 @@ export class ParticleSystem {
           ages: new Float32Array(this.config.maxParticles)
         }
         this.logger.info('GPU buffers reallocated')
+      }
+
+      // 通知外部粒子数量已变化
+      if (this.particleCountChangeCallback) {
+        this.particleCountChangeCallback(this.config.maxParticles)
       }
     }
 

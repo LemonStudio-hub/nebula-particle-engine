@@ -96,6 +96,21 @@ export class NebulaEngine {
         this.logger.info('GPU compute disabled by configuration')
       }
 
+      // 设置粒子数量变化回调
+      this.particleSystem.setParticleCountChangeCallback((newCount: number) => {
+        this.logger.info(`Particle count changed to ${newCount}, reallocating render arrays`)
+        
+        // 重新分配渲染数组
+        this.particlePositions = new Float32Array(newCount * 3)
+        this.particleColors = new Float32Array(newCount * 4)
+        this.particleSizes = new Float32Array(newCount)
+        
+        // 更新渲染管线配置
+        if (this.renderPipeline) {
+          this.renderPipeline.updateConfig({ particleCount: newCount })
+        }
+      })
+
       // 调整发射器位置和方向，使粒子可见
       const emitterConfig = {
         mode: 'point' as any,
