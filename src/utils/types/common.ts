@@ -89,6 +89,16 @@ export interface PerformanceMetrics {
 }
 
 /**
+ * 性能配置
+ */
+export interface PerformanceConfig {
+  targetFPS: number
+  minFPS: number
+  enableAutoFallback: boolean
+  fallbackStrategies: string[]
+}
+
+/**
  * 渲染器配置
  */
 export interface RendererConfig {

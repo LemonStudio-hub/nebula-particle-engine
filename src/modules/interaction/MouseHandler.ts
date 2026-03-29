@@ -1,4 +1,4 @@
-import { InteractionHandler, InteractionCallback } from './InteractionHandler'
+import { InteractionHandler } from './InteractionHandler'
 import { Vector3 } from '@/utils/types/common'
 import { InteractionEventType } from '@/utils/types/interaction'
 

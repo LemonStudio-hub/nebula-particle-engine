@@ -10,7 +10,7 @@ import { Logger } from '@/utils/Logger'
  */
 export class GestureHandler extends InteractionHandler {
   private hammer: HammerManager | null = null
-  private readonly logger = Logger.create('GestureHandler')
+  protected logger = Logger.create('GestureHandler') // 改为 protected 以匹配基类
 
   /**
    * 初始化手势处理器

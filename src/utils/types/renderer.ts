@@ -1,4 +1,12 @@
-import { RendererType, RendererConfig } from './common'
+import { RendererConfig } from './common'
+
+/**
+ * 渲染器类型枚举
+ */
+export enum RendererType {
+  WebGPU = 'webgpu',
+  WebGL = 'webgl'
+}
 
 /**
  * 渲染器类型枚举

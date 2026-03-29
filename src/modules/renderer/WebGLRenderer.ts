@@ -44,8 +44,7 @@ export class WebGLRenderer extends RendererBase {
       this.renderer.setPixelRatio(pixelRatio)
       this.renderer.setSize(canvas.clientWidth, canvas.clientHeight)
 
-      // 启用对数深度缓冲
-      this.renderer.capabilities.isWebGL2 = true
+      // 设置清除颜色
       this.renderer.setClearColor(0x000000, 1)
 
       // 创建场景

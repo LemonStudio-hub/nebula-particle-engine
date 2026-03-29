@@ -1,7 +1,7 @@
 import { Vector3, Color3, Range, Vector3Range, ColorRange } from '@/utils/types/common'
-import { ParticleSystemConfig, ParticleData as IParticleData } from '@/utils/types/particle'
+import { ParticleSystemConfig } from '@/utils/types/particle'
 import { ParticleData } from './ParticleData'
-import { ParticleEmitter, ParticleEmitterConfig } from './ParticleEmitter'
+import { ParticleEmitter } from './ParticleEmitter'
 import { Logger } from '@/utils/Logger'
 
 /**

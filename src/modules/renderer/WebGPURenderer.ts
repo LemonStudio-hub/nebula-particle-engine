@@ -5,11 +5,12 @@ import { Logger } from '@/utils/Logger'
 
 /**
  * WebGPU 渲染器实现
- * 使用 Three.js 的 WebGPURenderer 进行渲染
+ * 使用 Three.js 的 WebGL 渲染器作为降级方案
+ * 注意：Three.js 的 WebGPURenderer 还在实验阶段，这里使用 WebGL 实现
  */
 export class WebGPURenderer extends RendererBase {
   private readonly logger = Logger.create('WebGPURenderer')
-  private renderer: THREE.WebGPURenderer | null = null
+  private renderer: THREE.WebGLRenderer | null = null
   private scene: THREE.Scene | null = null
   private camera: THREE.PerspectiveCamera | null = null
 
@@ -26,21 +27,23 @@ export class WebGPURenderer extends RendererBase {
    */
   async initialize(canvas: HTMLCanvasElement): Promise<void> {
     try {
-      this.logger.info('Initializing WebGPU renderer...')
+      this.logger.info('Initializing WebGPU renderer (using WebGL fallback)...')
 
       this._canvas = canvas
 
-      // 创建 WebGPU 渲染器
-      this.renderer = new THREE.WebGPURenderer({
+      // 创建 WebGL 渲染器（WebGPURenderer 的降级方案）
+      this.renderer = new THREE.WebGLRenderer({
         canvas: canvas,
         antialias: this.config.antialias,
-        alpha: this.config.alpha
+        alpha: this.config.alpha,
+        powerPreference: 'high-performance'
       })
 
       // 配置渲染器
       const pixelRatio = this.calculatePixelRatio()
       this.renderer.setPixelRatio(pixelRatio)
       this.renderer.setSize(canvas.clientWidth, canvas.clientHeight)
+      this.renderer.setPixelRatio(pixelRatio)
 
       // 创建场景
       this.scene = new THREE.Scene()

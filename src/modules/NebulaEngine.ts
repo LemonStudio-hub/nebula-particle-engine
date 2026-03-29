@@ -1,5 +1,6 @@
 import { IRenderer, RendererType } from '@/utils/types/renderer'
-import { ParticleSystem, ParticleSystemConfig } from './particles'
+import { ParticleSystem } from './particles'
+import { ParticleSystemConfig } from '@/utils/types/particle'
 import { RenderPipeline, RenderPipelineConfig } from './renderer/RenderPipeline'
 import { RendererFactory } from './renderer/RendererFactory'
 import { InteractionManager } from './interaction/InteractionManager'
