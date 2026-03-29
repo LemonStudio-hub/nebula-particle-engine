@@ -347,10 +347,27 @@ export class ParticleSystem {
     const oldMaxParticles = this.config.maxParticles
     this.config = { ...this.config, ...config }
 
-    // 如果最大粒子数量发生变化，重新初始化粒子池
+    // 如果最大粒子数量发生变化，动态调整粒子池大小
     if (config.maxParticles !== undefined && config.maxParticles !== oldMaxParticles) {
-      this.logger.info(`Max particles changed from ${oldMaxParticles} to ${config.maxParticles}, reinitializing particle pool`)
-      this.initializeParticlePool()
+      this.logger.info(`Max particles changed from ${oldMaxParticles} to ${config.maxParticles}, adjusting particle pool`)
+
+      // 动态调整粒子池大小，保留现有粒子
+      if (config.maxParticles > oldMaxParticles) {
+        // 增加粒子：添加新粒子
+        for (let i = oldMaxParticles; i < config.maxParticles; i++) {
+          const particle = new ParticleData()
+          this.particles.push(particle)
+        }
+        this.logger.info(`Added ${config.maxParticles - oldMaxParticles} new particles to pool`)
+      } else {
+        // 减少粒子：移除多余粒子（保留前 N 个活跃粒子）
+        const removedCount = oldMaxParticles - config.maxParticles
+        this.particles = this.particles.slice(0, config.maxParticles)
+        this.logger.info(`Removed ${removedCount} particles from pool`)
+      }
+
+      // 更新活跃计数
+      this.activeCount = Math.min(this.activeCount, config.maxParticles)
 
       // 如果 GPU 计算已启用，重新分配 GPU 缓冲区
       if (this.computeShader) {
@@ -360,25 +377,27 @@ export class ParticleSystem {
           velocities: new Float32Array(this.config.maxParticles * 3),
           ages: new Float32Array(this.config.maxParticles)
         }
+        this.logger.info('GPU buffers reallocated')
       }
     }
 
     // 更新发射器配置
     if (config.emitter) {
-      this.emitter.updateConfig({
-        // 传递所有发射器相关属性
+      // 使用更安全的属性检查，避免 || 运算符导致的 0/false 值问题
+      const emitterConfig: any = {
         position: config.emitter.position,
         direction: config.emitter.direction,
         spread: config.emitter.spread,
         rate: config.emitter.rate !== undefined ? config.emitter.rate : this.config.emitRate,
-        size: config.emitter.size || this.config.size,
-        lifetime: config.emitter.lifetime || this.config.lifetime,
-        velocity: config.emitter.velocity || this.config.velocity,
-        color: config.emitter.color || this.config.color,
-        gravity: config.emitter.gravity || this.config.gravity,
+        size: config.emitter.size !== undefined ? config.emitter.size : this.config.size,
+        lifetime: config.emitter.lifetime !== undefined ? config.emitter.lifetime : this.config.lifetime,
+        velocity: config.emitter.velocity !== undefined ? config.emitter.velocity : this.config.velocity,
+        color: config.emitter.color !== undefined ? config.emitter.color : this.config.color,
+        gravity: config.emitter.gravity !== undefined ? config.emitter.gravity : this.config.gravity,
         drag: config.emitter.drag !== undefined ? config.emitter.drag : this.config.drag,
         burstCount: config.emitter.burstCount
-      })
+      }
+      this.emitter.updateConfig(emitterConfig)
     } else {
       // 更新发射器配置
       this.emitter.updateConfig({

@@ -173,7 +173,15 @@ export class NebulaEngine {
       case 'reduce_particles':
         // 减少粒子数量
         const newMaxParticles = Math.floor(currentConfig.maxCount * 0.7)
+        
+        // 更新配置
         this.config.setParticleConfig({ maxCount: newMaxParticles })
+        
+        // 应用到粒子系统
+        this.particleSystem.updateConfig({
+          maxParticles: newMaxParticles
+        })
+        
         this.logger.info(`Reduced particle count to ${newMaxParticles}`)
         break
 

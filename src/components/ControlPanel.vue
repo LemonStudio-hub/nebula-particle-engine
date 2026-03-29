@@ -288,13 +288,29 @@ const reset = () => {
   emitRate.value = 100
   isPaused.value = false
 
-  // 重置引擎状态
+  // 重置引擎状态并应用默认配置
   if (props.engine) {
     try {
-      // 停止引擎
-      props.engine.stop()
+      const particleSystem = props.engine.getParticleSystem()
+      if (particleSystem) {
+        // 应用默认配置到粒子系统
+        particleSystem.updateConfig({
+          maxParticles: 10000,
+          initialParticles: 10000,
+          emitter: {
+            position: { x: 0, y: -10, z: 0 },
+            direction: { x: 0, y: 1, z: 0 },
+            spread: 45,
+            rate: 100,
+            size: { min: 1.5, max: 3 }
+          }
+        })
+        // 重置粒子系统
+        particleSystem.reset()
+      }
 
-      // 重新启动引擎
+      // 停止并重新启动引擎
+      props.engine.stop()
       props.engine.start()
 
       console.log('[ControlPanel] Configuration reset successfully')
