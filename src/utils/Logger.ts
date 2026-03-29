@@ -135,18 +135,34 @@ export class ModuleLogger {
   constructor(private readonly module: string) {}
 
   debug(message: string, ...args: any[]): void {
-    Logger.debug(this.module, message, ...args)
+    try {
+      Logger.debug(this.module, message, ...args)
+    } catch (error) {
+      // 静默失败，避免日志错误导致应用崩溃
+    }
   }
 
   info(message: string, ...args: any[]): void {
-    Logger.info(this.module, message, ...args)
+    try {
+      Logger.info(this.module, message, ...args)
+    } catch (error) {
+      // 静默失败，避免日志错误导致应用崩溃
+    }
   }
 
   warn(message: string, ...args: any[]): void {
-    Logger.warn(this.module, message, ...args)
+    try {
+      Logger.warn(this.module, message, ...args)
+    } catch (error) {
+      // 静默失败，避免日志错误导致应用崩溃
+    }
   }
 
   error(message: string, ...args: any[]): void {
-    Logger.error(this.module, message, ...args)
+    try {
+      Logger.error(this.module, message, ...args)
+    } catch (error) {
+      // 静默失败，避免日志错误导致应用崩溃
+    }
   }
 }

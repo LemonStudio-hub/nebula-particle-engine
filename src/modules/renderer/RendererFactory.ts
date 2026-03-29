@@ -1,6 +1,7 @@
 import { IRenderer, IRendererFactory, RendererCreateConfig, RendererType } from '@/utils/types/renderer'
 import { WebGPURenderer } from './WebGPURenderer'
 import { WebGLRenderer } from './WebGLRenderer'
+import { Logger } from '@/utils/Logger'
 
 /**
  * 渲染器工厂
@@ -8,6 +9,7 @@ import { WebGLRenderer } from './WebGLRenderer'
  */
 export class RendererFactory implements IRendererFactory {
   private static instance: RendererFactory | null = null
+  private readonly logger = Logger.create('RendererFactory')
 
   private constructor() {}
 
