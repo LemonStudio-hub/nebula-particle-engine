@@ -219,7 +219,7 @@ export class NebulaEngine {
   /**
    * 渲染循环
    */
-  private renderLoop = (): void => {
+  private renderLoop = async (): Promise<void> => {
     if (!this.running) return
 
     try {
@@ -227,8 +227,8 @@ export class NebulaEngine {
       const deltaTime = Math.min((currentTime - this.lastFrameTime) / 1000, 0.1) // 限制最大帧时间
       this.lastFrameTime = currentTime
 
-      // 更新粒子系统
-      this.particleSystem?.update(deltaTime)
+      // 更新粒子系统（等待 GPU 计算完成）
+      await this.particleSystem?.update(deltaTime)
 
       // 更新渲染数据
       if (this.particleSystem && this.renderPipeline && this.particlePositions && this.particleColors && this.particleSizes) {

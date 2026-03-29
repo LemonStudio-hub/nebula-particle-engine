@@ -18,6 +18,7 @@ export class ParticleSystem {
   private particles: ParticleData[]
   private activeCount: number = 0
   private emitter: ParticleEmitter
+  private particlePoolInitialized: boolean = false
 
   // GPU 计算着色器支持
   private computeShader: IComputeShader | null = null
@@ -32,6 +33,7 @@ export class ParticleSystem {
     this.config = config
     this.particles = []
     this.activeCount = 0
+    this.particlePoolInitialized = false
 
     // 创建发射器
     this.emitter = new ParticleEmitter({
@@ -48,10 +50,8 @@ export class ParticleSystem {
       drag: config.drag
     })
 
-    // 初始化粒子池
-    this.initializeParticlePool()
-
-    this.logger.info(`Particle system created with max ${config.maxParticles} particles`)
+    // 不立即初始化粒子池，等待正确的发射器配置
+    this.logger.info(`Particle system created with max ${config.maxParticles} particles (pool not initialized yet)`)
   }
 
   /**
@@ -94,7 +94,14 @@ export class ParticleSystem {
   /**
    * 更新粒子系统
    */
-  update(deltaTime: number): void {
+  async update(deltaTime: number): Promise<void> {
+    // 延迟初始化粒子池（首次更新时）
+    if (!this.particlePoolInitialized) {
+      this.initializeParticlePool()
+      this.particlePoolInitialized = true
+      this.logger.info('Particle pool initialized on first update')
+    }
+
     // 更新发射器
     this.emitter.update(deltaTime)
 
@@ -111,7 +118,7 @@ export class ParticleSystem {
 
     // 使用 GPU 或 CPU 更新
     if (this.useGPU && this.computeShader && this.gpuBuffers) {
-      this.updateWithGPU(deltaTime)
+      await this.updateWithGPU(deltaTime)
     } else {
       this.updateWithCPU(deltaTime)
     }
